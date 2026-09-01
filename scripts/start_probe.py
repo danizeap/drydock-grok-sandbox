@@ -126,14 +126,32 @@ def check_hooks() -> tuple[list[str], list[dict]]:
     return errors, evidence
 
 
+def check_secret_tree() -> list[str]:
+    script = ROOT / "scripts" / "check_secret_tree.py"
+    if not script.is_file():
+        return ["missing scripts/check_secret_tree.py"]
+    proc = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode == 0:
+        return []
+    detail = (proc.stderr or proc.stdout).strip().splitlines()
+    return [detail[-1] if detail else f"check_secret_tree exit {proc.returncode}"]
+
+
 def main() -> int:
     pin_errors = check_pins()
     hook_errors, evidence = check_hooks()
-    errors = pin_errors + hook_errors
+    secret_tree_errors = check_secret_tree()
+    errors = pin_errors + hook_errors + secret_tree_errors
     result = {
         "ok": not errors,
         "pin_errors": pin_errors,
         "hook_errors": hook_errors,
+        "secret_tree_errors": secret_tree_errors,
         "hook_evidence": evidence,
     }
     print(json.dumps(result, indent=2))
