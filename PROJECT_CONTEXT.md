@@ -33,10 +33,14 @@ Preferred:
 - repo-local hooks (not CLAUDE_PLUGIN_ROOT)
 - LaunchGuardian from `git+https://github.com/danizeap/launchguardian-cli@fix/scanner-evidence-fail-closed`
 - hashed `scripts/check_verdict.py`
+- vendored read-only coplan closure — `scripts/conductor/` `negotiate.py`, `review.py`,
+  `codex_bridge.py`, `negotiate_schema.json`, `review_schema.json`, `__init__.py` (those six files
+  only, pinned in `drydock-pins.json`)
 
 Avoid:
 
-- conductor/ on this VM
+- mutating/unvendored conductor: `mutate.py`, `coord.py`, `executors.py`, `handoff.py` (not
+  vendored; must not be vendored or run on this VM)
 - released LaunchGuardian 0.2.0 from PyPI
 - client code, client packets, LOQ files
 - putting the run ledger inside this tree (`~/drydock-state/drydock-grok-sandbox/` is the ledger home)

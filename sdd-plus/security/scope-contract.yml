@@ -29,9 +29,10 @@ scope:
     - "GitHub Actions job drydock on ubuntu-latest"
     - "LaunchGuardian project-mode scan of this tree"
     - "Local scanner install under /home/box/.local/bin on the shared VM"
+    - "Read-only coplan on the shared VM via the vendored six-file negotiate closure: scripts/conductor/{negotiate.py, review.py, codex_bridge.py, negotiate_schema.json, review_schema.json, __init__.py} — those six files only"
   out_of_scope:
     - "Client trees and LOQ files (must not be copied here)"
-    - "conductor/ on this VM"
+    - "Mutating/unvendored conductor (mutate.py, coord.py, executors.py, handoff.py) — not vendored, not run on this VM"
     - "Production deployment, customer users, payments, or hosted product"
     - "The run ledger at /home/box/drydock-state/drydock-grok-sandbox/ (must not enter this git tree)"
     - "The grok-choreography-smoke packet (not this bootstrap)"
@@ -81,6 +82,6 @@ launch_constraints:
   must_not_do:
     - "Force-push or delete main"
     - "Weaken ci_parse_lg_report.py"
-    - "Copy client/LOQ files or run conductor/"
+    - "Copy client/LOQ files, or vendor or run mutating conductor (mutate.py, coord.py, executors.py, handoff.py)"
     - "Commit ledger files into this tree"
   rollback_or_disable_path: "Delete or archive the public sandbox repo; disable the drydock workflow; VM ledger stays outside git. There is no production traffic to drain."
