@@ -122,6 +122,7 @@ def test_empty_github_actions_does_not_skip(tmp_path: Path, monkeypatch):
 def _stub_other_checks(monkeypatch):
     """Make every check but discover pass, so main() depends on no pin/hook tree."""
     monkeypatch.setattr(start_probe, "check_pins", lambda: [])
+    monkeypatch.setattr(start_probe, "check_conductor_closure", lambda: [])
     monkeypatch.setattr(start_probe, "check_hooks", lambda: ([], []))
     monkeypatch.setattr(start_probe, "check_secret_tree", lambda: [])
     monkeypatch.setattr(start_probe, "ensure_pre_push", lambda root: [])
