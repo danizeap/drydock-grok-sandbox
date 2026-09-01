@@ -1,0 +1,70 @@
+# Product inventory for drydock-grok-sandbox (throwaway LITE sandbox, not a product launch).
+project: "drydock-grok-sandbox"
+change: "bootstrap-lgf-packet"
+date: "2026-09-01"
+owner: "Daniel Paez"
+
+related_gates:
+  - "Gate 1 — Product, Asset & Data Inventory"
+  - "Gate 5 — Frontend Exposure"
+  - "Gate 13 — Webhooks, Background Jobs & Integrations"
+  - "Gate 17 — Observability, Logs & Incident Readiness"
+
+components:
+  - name: "Drydock kernel"
+    type: "python-library"
+    description: "Vendored sdd.py / brief.py at drydock 5f76f67"
+    repository_or_location: "scripts/sdd.py, kernel/brief.py, scripts/brief.py"
+    environment: "local VM + CI"
+    public_exposure: "source is public on GitHub"
+    owner: "Daniel Paez"
+  - name: "Repo-local hooks"
+    type: "agent-hooks"
+    description: "git_safety, protect_secrets, packet_guard, session_orient, completion_gate"
+    repository_or_location: "hooks/"
+    environment: "local VM agent CLIs"
+    public_exposure: "source is public"
+    owner: "Daniel Paez"
+  - name: "CI drydock job"
+    type: "github-actions"
+    description: "Fail-closed pytest + LaunchGuardian --strict-scanners"
+    repository_or_location: ".github/workflows/drydock.yml"
+    environment: "ubuntu-latest"
+    public_exposure: "workflow logs on public repo"
+    owner: "Daniel Paez"
+  - name: "LaunchGuardian"
+    type: "cli-scanner"
+    description: "Installed from git+https://github.com/danizeap/launchguardian-cli@fix/scanner-evidence-fail-closed"
+    repository_or_location: "CI step + /home/box/.local on the VM"
+    environment: "CI and shared VM"
+    public_exposure: "report artifacts are generated, gitignored"
+    owner: "Daniel Paez"
+
+entry_points:
+  - name: "GitHub Actions drydock job"
+    type: "ci"
+    path_or_url: ".github/workflows/drydock.yml"
+    authentication_required: "GitHub repo permissions / GITHUB_TOKEN"
+    expected_users: "Owner and CI"
+  - name: "Local python scripts"
+    type: "cli"
+    path_or_url: "scripts/start_probe.py, scripts/check_verdict.py, scripts/sdd.py"
+    authentication_required: "local VM access"
+    expected_users: "Owner and agent CLIs on the VM"
+
+background_processes:
+  - name: "none-in-product"
+    trigger: "n/a"
+    permissions: "n/a"
+    data_access: "No product workers. GitHub Actions is CI only."
+
+admin_surfaces:
+  - name: "GitHub repository settings / branch protection"
+    access_control: "GitHub owner danizeap"
+    audit_or_logging: "GitHub audit log / Actions history"
+
+operational_controls:
+  monitoring: "GitHub Actions logs only. Not production monitoring."
+  alerting: "none"
+  backups: "git history on GitHub"
+  rollback: "revert commit on main (no force-push); disable workflow if needed"

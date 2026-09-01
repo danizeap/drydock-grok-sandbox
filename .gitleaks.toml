@@ -1,0 +1,8 @@
+# Path-scoped allowlist: drydock-pins.json stores sha256 file digests of
+# vendored kernel/hook bytes. gitleaks generic-api-key matches 64-char hex.
+# This is not a secret store. Do not broaden this path list.
+title = "drydock-grok-sandbox"
+
+[[allowlists]]
+description = "drydock-pins.json contains sha256 file digests, not credentials"
+paths = ['''drydock-pins.json''']
