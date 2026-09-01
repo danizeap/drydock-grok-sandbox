@@ -4,11 +4,11 @@
   "hash_alg": "sha256",
   "files": {
     "scripts/sdd.py": "202e2fb127caa716788f8866dfdd80f02b49eca937037aee0ecf2c57174c48f1",
-    "scripts/brief.py": "4b774b2e624c66916148f6bfb191ae13681ea86a6c63e322dd6bc369b9c73d90",
-    "kernel/brief.py": "e410eeae85687c315d2c0c626d3eb500f689fcf81b1e98a22e21e9185feeb806",
+    "scripts/brief.py": "90307795715e5967e7497a410015bc5a880938956471919e52b00eb3b32e5900",
+    "kernel/brief.py": "4ced1fe41d7697f5de7eeed6cc1ee6bbcfda53ff20a6a87085f2eb46dd2c9b5b",
     "scripts/check_verdict.py": "79075ea8089598260a749c8b20d0f672bdf0670f4e891fdf8c5b82e87b20f735",
     "scripts/check_secret_tree.py": "0c5c7bc7ba78dd78ea8fc3778ced7fc2eaca856a758cb8c67528de4694364088",
-    "scripts/record_verify_bound.py": "437cc72952f0a93baa49d14c02c7f034e6b546bcd2da5c477f4d69bf2f5ce364",
+    "scripts/record_verify_bound.py": "43bc4ddae631fc2c0726d93dc053028aa767b232fc58da96811e365b5d3eda89",
     "scripts/start_probe.py": "af48884779ce9229aba9cc1004e85873cde732d7a173372001bf426aeaa00977",
     "hooks/_drydock_common.py": "2cb0a620c0cd5a6f92ac819eafa17f12721cb7e653b353cf69a0c4e0f1edf274",
     "hooks/git_safety.py": "8b4c17d000ee00e8e2ff3351caf6d16b792ea26676f072137d738bd0e5229a29",
@@ -21,6 +21,7 @@
     "backstops/pre-commit": "f0cb5b7b72d9847c348d7263c7a5170bcc472a0a8b6e51d7da9bd8bc1fa4e983",
     "backstops/pre-push": "38f2008e0c11016e22fa95881db4f3a964b967b357867fd1011e282bd93c68a4",
     "AGENTS.md": "eaa0364fc6b36cad7b31d197fc09eaec14c8a4752e2de4e411253b3b2462782d",
-    "kernel/brief_complete.py": "aa3ba09fa5b8bd3a861d3ac3a58990a06251d0204c5632f93b6658ad85368a2b"
+    "kernel/brief_complete.py": "9442988883822f58b60036438570dab9e1bcb760b6d18f0b9cc6b45e01cea827",
+    "kernel/brief_engine.py": "aa3ba09fa5b8bd3a861d3ac3a58990a06251d0204c5632f93b6658ad85368a2b"
   }
 }
