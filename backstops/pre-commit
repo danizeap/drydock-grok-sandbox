@@ -11,6 +11,8 @@ must never fail *open* on its core job. Fail-mode contract:
   bug can't brick the ability to commit (the PreToolUse layer is the primary).
 - secret-detection itself raises -> fail CLOSED (block), because a secrets
   backstop must not pass a possibly-secret commit on its own bug.
+- leftover gitignored secret files (.env) in the working tree -> fail CLOSED
+  (Grok Shell can write them; commit must not proceed while they sit there).
 """
 import glob
 import os
@@ -63,6 +65,33 @@ def _resolve_is_secret():
     return fallback
 
 
+_SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", ".venv", "venv", "node_modules", ".mypy_cache"}
+
+
+def _repo_root():
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True)
+        if proc.returncode == 0:
+            return proc.stdout.strip()
+    except Exception:
+        return None
+    return None
+
+
+def _tree_secrets(root, is_secret):
+    """Secret basenames in the working tree, including gitignored files."""
+    found = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+        for name in filenames:
+            rel = os.path.relpath(os.path.join(dirpath, name), root)
+            if is_secret(rel):
+                found.append(rel.replace("\\", "/"))
+    return sorted(found)
+
+
 def main():
     try:
         proc = subprocess.run(
@@ -84,6 +113,23 @@ def main():
         for f in bad:
             sys.stderr.write(f"  - {f}\n")
         sys.stderr.write("Unstage them (git restore --staged <file>) and keep secrets out of git.\n")
+        return 1
+    toplevel = _repo_root()
+    if not toplevel:
+        return 0
+    try:
+        leftover = _tree_secrets(toplevel, is_secret)
+    except Exception:
+        sys.stderr.write("BLOCKED by Drydock pre-commit: could not scan working tree for "
+                         "secret-bearing files; blocking to be safe.\n")
+        return 1
+    if leftover:
+        sys.stderr.write("BLOCKED by Drydock pre-commit: secret-bearing file(s) in the "
+                         "working tree (including gitignored):\n")
+        for f in leftover:
+            sys.stderr.write(f"  - {f}\n")
+        sys.stderr.write("Remove them before committing. Write is not prevented on this "
+                         "platform; leftover secrets fail the commit.\n")
         return 1
     return 0
 
