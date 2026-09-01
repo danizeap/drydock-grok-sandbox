@@ -7,6 +7,8 @@
     "scripts/brief.py": "aa3ba09fa5b8bd3a861d3ac3a58990a06251d0204c5632f93b6658ad85368a2b",
     "kernel/brief.py": "aa3ba09fa5b8bd3a861d3ac3a58990a06251d0204c5632f93b6658ad85368a2b",
     "scripts/check_verdict.py": "79075ea8089598260a749c8b20d0f672bdf0670f4e891fdf8c5b82e87b20f735",
+    "scripts/check_secret_tree.py": "0c5c7bc7ba78dd78ea8fc3778ced7fc2eaca856a758cb8c67528de4694364088",
+    "scripts/record_verify_bound.py": "3726f7adbd2e8e77575412e87a46ac3cd77860b70e943bf47d475fcc026bbd86",
     "hooks/_drydock_common.py": "2cb0a620c0cd5a6f92ac819eafa17f12721cb7e653b353cf69a0c4e0f1edf274",
     "hooks/git_safety.py": "8b4c17d000ee00e8e2ff3351caf6d16b792ea26676f072137d738bd0e5229a29",
     "hooks/protect_secrets.py": "547b34a7de16d5c20383e670559ea9b0ac0d92986d16e882b164c2412eb40c7d",
