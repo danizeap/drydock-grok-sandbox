@@ -16,6 +16,7 @@
     "hooks/hooks.json": "3de78d2cdd041e81521a336506d73fa5266c0f7bf349e7fed26d11cfde80baed",
     "agents/verifier.md": "5d724022d20b99a95c10d0e122d92b384f04d6c71e2d498e4c956212333e0e38",
     "backstops/pre-commit": "6bb2132a06da15b0d7a9a2b22c28b88b26502b097fa474a71391263d98e0cf31",
+    "backstops/pre-push": "38f2008e0c11016e22fa95881db4f3a964b967b357867fd1011e282bd93c68a4",
     "AGENTS.md": "eaa0364fc6b36cad7b31d197fc09eaec14c8a4752e2de4e411253b3b2462782d"
   }
 }
