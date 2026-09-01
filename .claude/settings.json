@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          { "type": "command", "command": "python3 hooks/session_orient.py || python hooks/session_orient.py" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "python3 hooks/completion_gate.py || python hooks/completion_gate.py" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "python3 hooks/protect_secrets.py || python hooks/protect_secrets.py" }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "python3 hooks/git_safety.py || python hooks/git_safety.py" }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "python3 hooks/packet_guard.py || python hooks/packet_guard.py" }
+        ]
+      }
+    ]
+  }
+}

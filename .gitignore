@@ -1,0 +1,52 @@
+# bytecode / caches — dirty fingerprints
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# local env / venvs
+.env
+.env.*
+!.env.example
+!.env.template
+!.env.sample
+venv/
+.venv/
+env/
+
+# secrets / keys (also blocked by Drydock hooks)
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.ppk
+id_rsa
+id_ed25519
+id_ecdsa
+id_dsa
+.envrc
+credentials.json
+secrets.json
+secrets.yaml
+secrets.yml
+secrets.toml
+service-account*.json
+
+# tool / OS noise
+.DS_Store
+Thumbs.db
+node_modules/
+dist/
+build/
+tmp/
+temp/
+
+# LaunchGuardian local/CI reports (generated, not source)
+reports/
+
+# editor
+.idea/
+.vscode/

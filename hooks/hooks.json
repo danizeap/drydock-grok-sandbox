@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/session_orient.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/session_orient.py\"" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/completion_gate.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/completion_gate.py\"" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/protect_secrets.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/protect_secrets.py\"" }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/git_safety.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/git_safety.py\"" }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/packet_guard.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/packet_guard.py\"" }
+        ]
+      }
+    ]
+  }
+}

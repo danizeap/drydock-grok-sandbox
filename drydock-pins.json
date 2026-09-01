@@ -1,0 +1,21 @@
+{
+  "drydock_commit": "5f76f67eda90d92b4f0eea1908e66c7f45ca81f7",
+  "verifier_md_git_blob": "45657bf47d64fb801cd9ef22a29d7518762aa870",
+  "hash_alg": "sha256",
+  "files": {
+    "scripts/sdd.py": "202e2fb127caa716788f8866dfdd80f02b49eca937037aee0ecf2c57174c48f1",
+    "scripts/brief.py": "aa3ba09fa5b8bd3a861d3ac3a58990a06251d0204c5632f93b6658ad85368a2b",
+    "kernel/brief.py": "aa3ba09fa5b8bd3a861d3ac3a58990a06251d0204c5632f93b6658ad85368a2b",
+    "scripts/check_verdict.py": "79075ea8089598260a749c8b20d0f672bdf0670f4e891fdf8c5b82e87b20f735",
+    "hooks/_drydock_common.py": "2cb0a620c0cd5a6f92ac819eafa17f12721cb7e653b353cf69a0c4e0f1edf274",
+    "hooks/git_safety.py": "8b4c17d000ee00e8e2ff3351caf6d16b792ea26676f072137d738bd0e5229a29",
+    "hooks/protect_secrets.py": "547b34a7de16d5c20383e670559ea9b0ac0d92986d16e882b164c2412eb40c7d",
+    "hooks/packet_guard.py": "83d87cbdbbb530b73fb61d75ddc564444cfdd98812daa2fbf944ce9f01a6c795",
+    "hooks/session_orient.py": "3be0771688091c6e789468896573d170ef2d09002407262f805995dd4b8f73e7",
+    "hooks/completion_gate.py": "e9c10b92df6f452d890290bb550ef2e2411485e311d3933b0e76bcc7bcb0cd76",
+    "hooks/hooks.json": "3de78d2cdd041e81521a336506d73fa5266c0f7bf349e7fed26d11cfde80baed",
+    "agents/verifier.md": "5d724022d20b99a95c10d0e122d92b384f04d6c71e2d498e4c956212333e0e38",
+    "backstops/pre-commit": "6bb2132a06da15b0d7a9a2b22c28b88b26502b097fa474a71391263d98e0cf31",
+    "AGENTS.md": "eaa0364fc6b36cad7b31d197fc09eaec14c8a4752e2de4e411253b3b2462782d"
+  }
+}
