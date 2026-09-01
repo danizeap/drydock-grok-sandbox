@@ -128,15 +128,15 @@ def check_hooks() -> tuple[list[str], list[dict]]:
 
 
 
-def ensure_pre_push(root: Path) -> list[str]:
-    """Copy backstops/pre-push into .git/hooks. Fail closed if missing or unmatched."""
-    src = root / "backstops" / "pre-push"
+def ensure_backstop_hook(root: Path, name: str) -> list[str]:
+    """Copy backstops/<name> into .git/hooks. Fail closed if missing or unmatched."""
+    src = root / "backstops" / name
     git_dir = root / ".git"
-    dst = git_dir / "hooks" / "pre-push"
+    dst = git_dir / "hooks" / name
     if not src.is_file():
-        return ["missing backstops/pre-push"]
+        return [f"missing backstops/{name}"]
     if not git_dir.is_dir():
-        return ["missing .git; cannot install pre-push"]
+        return [f"missing .git; cannot install {name}"]
     want = sha256_file(src)
     if dst.is_file():
         try:
@@ -144,23 +144,31 @@ def ensure_pre_push(root: Path) -> list[str]:
                 try:
                     dst.chmod(0o755)
                 except OSError as e:
-                    return [f"could not chmod matching pre-push: {e}"]
+                    return [f"could not chmod matching {name}: {e}"]
                 return []
         except OSError as e:
-            return [f"could not read existing pre-push: {e}"]
+            return [f"could not read existing {name}: {e}"]
     try:
         dst.parent.mkdir(parents=True, exist_ok=True)
         dst.write_bytes(src.read_bytes())
         dst.chmod(0o755)
     except OSError as e:
-        return [f"could not install pre-push: {e}"]
+        return [f"could not install {name}: {e}"]
     try:
         got = sha256_file(dst)
     except OSError as e:
-        return [f"installed pre-push unreadable: {e}"]
+        return [f"installed {name} unreadable: {e}"]
     if got != want:
-        return [f"pre-push install hash mismatch: got {got} expected {want}"]
+        return [f"{name} install hash mismatch: got {got} expected {want}"]
     return []
+
+
+def ensure_pre_push(root: Path) -> list[str]:
+    return ensure_backstop_hook(root, "pre-push")
+
+
+def ensure_pre_commit(root: Path) -> list[str]:
+    return ensure_backstop_hook(root, "pre-commit")
 
 
 def check_secret_tree() -> list[str]:
@@ -184,13 +192,15 @@ def main() -> int:
     hook_errors, evidence = check_hooks()
     secret_tree_errors = check_secret_tree()
     pre_push_errors = ensure_pre_push(ROOT)
-    errors = pin_errors + hook_errors + secret_tree_errors + pre_push_errors
+    pre_commit_errors = ensure_pre_commit(ROOT)
+    errors = pin_errors + hook_errors + secret_tree_errors + pre_push_errors + pre_commit_errors
     result = {
         "ok": not errors,
         "pin_errors": pin_errors,
         "hook_errors": hook_errors,
         "secret_tree_errors": secret_tree_errors,
         "pre_push_errors": pre_push_errors,
+        "pre_commit_errors": pre_commit_errors,
         "hook_evidence": evidence,
     }
     print(json.dumps(result, indent=2))
