@@ -141,6 +141,10 @@ def ensure_pre_push(root: Path) -> list[str]:
     if dst.is_file():
         try:
             if sha256_file(dst) == want:
+                try:
+                    dst.chmod(0o755)
+                except OSError as e:
+                    return [f"could not chmod matching pre-push: {e}"]
                 return []
         except OSError as e:
             return [f"could not read existing pre-push: {e}"]

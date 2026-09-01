@@ -34,10 +34,25 @@ def test_noop_when_hash_matches(tmp_path: Path):
     dst.parent.mkdir(parents=True)
     dst.write_bytes(_src_bytes())
     dst.chmod(0o755)
-    mtime = dst.stat().st_mtime_ns
     errs = start_probe.ensure_pre_push(tmp_path)
     assert errs == []
-    assert dst.stat().st_mtime_ns == mtime
+    assert dst.read_bytes() == _src_bytes()
+    assert dst.stat().st_mode & 0o111
+
+
+def test_chmod_when_hash_matches_but_not_executable(tmp_path: Path):
+    src = tmp_path / "backstops" / "pre-push"
+    src.parent.mkdir()
+    src.write_bytes(_src_bytes())
+    dst = tmp_path / ".git" / "hooks" / "pre-push"
+    dst.parent.mkdir(parents=True)
+    dst.write_bytes(_src_bytes())
+    dst.chmod(0o644)
+    assert not (dst.stat().st_mode & 0o111)
+    errs = start_probe.ensure_pre_push(tmp_path)
+    assert errs == []
+    assert dst.read_bytes() == _src_bytes()
+    assert dst.stat().st_mode & 0o111
 
 
 def test_replaces_drifted_hook(tmp_path: Path):
