@@ -22,6 +22,12 @@
     "backstops/pre-push": "38f2008e0c11016e22fa95881db4f3a964b967b357867fd1011e282bd93c68a4",
     "AGENTS.md": "eaa0364fc6b36cad7b31d197fc09eaec14c8a4752e2de4e411253b3b2462782d",
     "kernel/brief_complete.py": "9442988883822f58b60036438570dab9e1bcb760b6d18f0b9cc6b45e01cea827",
-    "kernel/brief_engine.py": "aa3ba09fa5b8bd3a861d3ac3a58990a06251d0204c5632f93b6658ad85368a2b"
+    "kernel/brief_engine.py": "aa3ba09fa5b8bd3a861d3ac3a58990a06251d0204c5632f93b6658ad85368a2b",
+    "scripts/conductor/__init__.py": "8bd65232a346ba48032aef30d401fa3e39dcf4f8aa2a8bfd0403cef582593999",
+    "scripts/conductor/codex_bridge.py": "bed8de88f9ddcc4bd1b223d40a59bb4fe81711b80f543df78a383d4a11e54bd1",
+    "scripts/conductor/negotiate.py": "366ddaf59e846d460d2df708f6681d3fd77d43faecc0e603a3a3467a4af6c6ee",
+    "scripts/conductor/negotiate_schema.json": "155a59141f2b304853ccdc7978e4e86c7c3b8d5cf03b184bb3d1312179081533",
+    "scripts/conductor/review.py": "68d62c2bc84502af17258ba014b48bd116cc5eb7dec31507025844e21d575caf",
+    "scripts/conductor/review_schema.json": "70521e6a1b61322fee2a342efc74a75174f5ca6b765a5c0905c5fcc4dc80ed00"
   }
 }
