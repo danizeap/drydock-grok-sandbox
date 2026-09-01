@@ -28,8 +28,10 @@ or held to the start probe, so the fix would not be commit-bound.
 
 In scope:
 
-- Vendor `scripts/conductor/` (10 files) into this repo from the already-fetched pin copy,
-  byte-identical apart from the deliberate edits below.
+- Vendor `scripts/conductor/` into this repo from the already-fetched pin copy, byte-identical
+  apart from the deliberate edits below. **Revised 2026-09-01:** six files, not the ten
+  originally scoped — the vendored set was narrowed to the import closure of `negotiate.py`
+  after the strict-scanner run. See `decision-log.md`.
 - Port `discover_core()` to POSIX: `PATH` lookup, then `$HOME/.local/bin/codex`, while keeping
   the existing Windows `LOCALAPPDATA` glob behavior intact.
 - Keep the existing safety property: never return the stale `~/.codex/.sandbox-bin` copy.
@@ -41,8 +43,11 @@ Out of scope:
 
 - Anything downstream of `discover` (gauge / route / delegate). Those stages may still fail on
   this VM; that is a separate packet.
-- Mutating delegation (`mutate.py`), review flows, or any behavior change to the other nine
-  vendored files.
+- Mutating delegation, review flows, or any behavior change to the other vendored files.
+  **Revised 2026-09-01:** `mutate.py`, `coord.py`, `executors.py`, and `handoff.py` are not
+  vendored at all — they have no caller in this repo and `mutate.py` carries a Gate 7
+  `shell=True` injection surface. Not vendoring them is a scope *reduction*; their behavior
+  remains out of scope and unchanged upstream.
 - Leftover-hole work from earlier packets. Archiving this packet.
 
 ## Acceptance Criteria

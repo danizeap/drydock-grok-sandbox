@@ -12,6 +12,7 @@ enable writes or sandbox escalation. Secret-bearing content is refused before it
 leaves the machine (`guard_outbound`, fail-closed).
 """
 import glob
+import io
 import json
 import os
 import queue
@@ -131,12 +132,19 @@ def read_rate_limits(core, timeout_s=25):
     Never raises for operational failures; always reaps the subprocess.
     """
     try:
+        # Binary pipes wrapped explicitly below: the decoding is pinned to UTF-8
+        # regardless of the platform's locale, and the Popen call itself stays on
+        # the kwargs every supported interpreter accepts.
         proc = subprocess.Popen(
             [*_as_prefix(core), "app-server"], stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            bufsize=1, encoding="utf-8", errors="replace")
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except (OSError, ValueError) as e:
         return _fail("spawn", str(e))
+
+    p_in = io.TextIOWrapper(proc.stdin, encoding="utf-8", errors="replace",
+                            line_buffering=True)
+    p_out = io.TextIOWrapper(proc.stdout, encoding="utf-8", errors="replace")
+    p_err = io.TextIOWrapper(proc.stderr, encoding="utf-8", errors="replace")
 
     outq = queue.Queue()
     errbuf = []
@@ -152,12 +160,12 @@ def read_rate_limits(core, timeout_s=25):
             if len(errbuf) > 40:
                 del errbuf[:-40]
 
-    threading.Thread(target=pump_out, args=(proc.stdout,), daemon=True).start()
-    threading.Thread(target=pump_err, args=(proc.stderr,), daemon=True).start()
+    threading.Thread(target=pump_out, args=(p_out,), daemon=True).start()
+    threading.Thread(target=pump_err, args=(p_err,), daemon=True).start()
 
     def send(o):
-        proc.stdin.write(json.dumps(o) + "\n")
-        proc.stdin.flush()
+        p_in.write(json.dumps(o) + "\n")
+        p_in.flush()
 
     def err_tail():
         return "\n".join(errbuf[-8:])
@@ -207,8 +215,8 @@ def read_rate_limits(core, timeout_s=25):
         return _fail("io", str(e), stderr=err_tail())
     finally:
         try:
-            if proc.stdin and not proc.stdin.closed:
-                proc.stdin.close()
+            if not p_in.closed:
+                p_in.close()  # closes proc.stdin too
         except OSError:
             pass
         try:

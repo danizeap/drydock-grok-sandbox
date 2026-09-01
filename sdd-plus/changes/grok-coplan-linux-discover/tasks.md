@@ -16,7 +16,12 @@ grok-coplan-linux-discover
 - [x] Add `tests/test_codex_discover.py`: Windows glob picks newest exe, `PATH` lookup works,
       `$HOME/.local/bin` fallback works, `.sandbox-bin` candidate is rejected, and discovery on
       this machine returns a real executable.
-- [x] Add all ten `scripts/conductor/*` sha256 entries to `drydock-pins.json`.
+- [x] Add the `scripts/conductor/*` sha256 entries to `drydock-pins.json`.
+- [x] Narrow the vendored set from ten files to the six `negotiate.py` actually imports; drop
+      `mutate.py` (Gate 7 `shell=True` injection surface, no caller here), `coord.py`,
+      `executors.py`, `handoff.py`, and their pin entries.
+- [x] Replace the `encoding=`/`errors=` kwargs on the `app-server` `Popen` in `codex_bridge.py`
+      with explicit `io.TextIOWrapper` pipes (same protocol, UTF-8 no longer locale-dependent).
 
 ## Verification
 
@@ -25,3 +30,4 @@ grok-coplan-linux-discover
 - [x] `discover_core()` returns `/home/box/.local/bin/codex` on this VM.
 - [x] One live `negotiate.py --round 1` with a short non-secret probe plan gets past stage
       `discover` (later stages may fail; that is out of scope).
+- [x] `launchguardian scan --target . --strict-scanners` — **APPROVED**, 0 findings.

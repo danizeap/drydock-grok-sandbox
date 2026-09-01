@@ -47,15 +47,28 @@ grok-coplan-linux-discover
    `negotiate.py --round 1` with a short non-secret probe plan to confirm the `discover` stage
    is passed.
 
+7. **Narrow the vendored surface to what is actually imported.** (Added after the strict-scanner
+   run; supersedes "all ten" in steps 1 and 6.) The import closure of `negotiate.py` is
+   `codex_bridge` + `review` plus the two schemas and `__init__.py` — six files. The other four
+   (`mutate.py`, `coord.py`, `executors.py`, `handoff.py`) have no caller in this repo, and
+   `mutate.py:477` carries a real Gate 7 shell-injection surface (`subprocess.run(..., shell=True)`
+   on a caller-supplied test command). They are not vendored. See `decision-log.md`.
+
+8. **Take the `Popen` encoding kwargs off the spawn call.** `read_rate_limits()` passed
+   `encoding=`/`errors=` to `subprocess.Popen`, which the scanner flags. Spawn with binary pipes
+   and wrap all three in `io.TextIOWrapper(encoding="utf-8", errors="replace")` instead — same
+   line protocol, and the UTF-8 decoding is now explicit rather than locale-dependent.
+
 ## Files Expected To Change
 
 - `scripts/conductor/__init__.py` (new, vendored verbatim)
-- `scripts/conductor/coord.py`, `executors.py`, `handoff.py`, `mutate.py`, `review.py`,
-  `negotiate_schema.json`, `review_schema.json` (new, vendored verbatim)
-- `scripts/conductor/codex_bridge.py` (new, vendored + `discover_core` ported)
+- `scripts/conductor/review.py`, `negotiate_schema.json`, `review_schema.json`
+  (new, vendored verbatim)
+- `scripts/conductor/codex_bridge.py` (new, vendored + `discover_core` ported + `Popen` pipes
+  wrapped explicitly)
 - `scripts/conductor/negotiate.py` (new, vendored + `discover` error message corrected)
 - `tests/test_codex_discover.py` (new)
-- `drydock-pins.json` (ten new entries)
+- `drydock-pins.json` (six new entries)
 - `sdd-plus/changes/grok-coplan-linux-discover/{brief,plan,tasks,decision-log,verification}.md`
 
 ## Risks
@@ -67,13 +80,17 @@ grok-coplan-linux-discover
   can behave differently from the installed core. Mitigated by the explicit `.sandbox-bin`
   predicate plus a dedicated rejection test, and by checking the resolved path too.
 - **Vendoring drift.** If a vendored file differed from the pin, the fix would sit on unknown
-  code. Mitigated by hashing all ten against `PIN.json` before the copy and pinning them after.
+  code. Mitigated by hashing all ten against `PIN.json` before the copy and pinning the six
+  retained ones after.
+- **Vendoring code we do not run.** Every vendored file is repo surface a scanner must clear and a
+  reader must account for. Mitigated by vendoring only the import closure of `negotiate.py`; the
+  four dropped modules stay upstream where they are exercised.
 - **Live-fire cost.** One `negotiate.py` round spends real Codex tokens. Bounded to a single
   round with a short probe plan; the packet does not require later stages to succeed.
 
 ## Rollback
 
 Every change is additive and confined to this branch (`hole/linux-codex-discover`). Reverting
-the commit removes `scripts/conductor/`, the new test, and the ten pin entries together, which
+the commit removes `scripts/conductor/`, the new test, and the six pin entries together, which
 returns the repo to a state the start probe accepts. No migration, no state, no deployed
 surface — nothing to unwind beyond `git revert`.
