@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Choreography start probe: pin drift + known deny/deny/allow hook payloads.
+"""Choreography start probe: pin drift + hook payloads + secret-tree + pre-push install.
 
 Fail closed. Stdlib only. Used locally and in CI against committed drydock-pins.json.
+Installs backstops/pre-push into .git/hooks if missing or drifted; fails if it cannot.
 """
 from __future__ import annotations
 
@@ -126,6 +127,38 @@ def check_hooks() -> tuple[list[str], list[dict]]:
     return errors, evidence
 
 
+
+def ensure_pre_push(root: Path) -> list[str]:
+    """Copy backstops/pre-push into .git/hooks. Fail closed if missing or unmatched."""
+    src = root / "backstops" / "pre-push"
+    git_dir = root / ".git"
+    dst = git_dir / "hooks" / "pre-push"
+    if not src.is_file():
+        return ["missing backstops/pre-push"]
+    if not git_dir.is_dir():
+        return ["missing .git; cannot install pre-push"]
+    want = sha256_file(src)
+    if dst.is_file():
+        try:
+            if sha256_file(dst) == want:
+                return []
+        except OSError as e:
+            return [f"could not read existing pre-push: {e}"]
+    try:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(src.read_bytes())
+        dst.chmod(0o755)
+    except OSError as e:
+        return [f"could not install pre-push: {e}"]
+    try:
+        got = sha256_file(dst)
+    except OSError as e:
+        return [f"installed pre-push unreadable: {e}"]
+    if got != want:
+        return [f"pre-push install hash mismatch: got {got} expected {want}"]
+    return []
+
+
 def check_secret_tree() -> list[str]:
     script = ROOT / "scripts" / "check_secret_tree.py"
     if not script.is_file():
@@ -146,12 +179,14 @@ def main() -> int:
     pin_errors = check_pins()
     hook_errors, evidence = check_hooks()
     secret_tree_errors = check_secret_tree()
-    errors = pin_errors + hook_errors + secret_tree_errors
+    pre_push_errors = ensure_pre_push(ROOT)
+    errors = pin_errors + hook_errors + secret_tree_errors + pre_push_errors
     result = {
         "ok": not errors,
         "pin_errors": pin_errors,
         "hook_errors": hook_errors,
         "secret_tree_errors": secret_tree_errors,
+        "pre_push_errors": pre_push_errors,
         "hook_evidence": evidence,
     }
     print(json.dumps(result, indent=2))
