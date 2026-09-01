@@ -39,8 +39,15 @@ jobs:
       - name: LaunchGuardian scan --strict-scanners
         run: |
           mkdir -p reports/launchguardian
+          set +e
           launchguardian scan --target . --strict-scanners --output-dir reports/launchguardian
-          test -f reports/launchguardian/launchguardian-report.json
+          scan_exit=$?
+          set -e
+          echo "launchguardian_exit=${scan_exit}"
+          if [ ! -f reports/launchguardian/launchguardian-report.json ]; then
+            echo "missing report JSON after scan (exit ${scan_exit}) — quiet scan is a fail"
+            exit 1
+          fi
 
       - name: Fail closed on quiet/blocked/incomplete scan
         run: python3 scripts/ci_parse_lg_report.py reports/launchguardian/launchguardian-report.json
