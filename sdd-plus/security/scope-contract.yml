@@ -1,0 +1,86 @@
+# Project LGF scope contract for drydock-grok-sandbox.
+# Throwaway LITE sandbox — NOT a production launch.
+project: "drydock-grok-sandbox"
+change: "bootstrap-lgf-packet"
+date: "2026-09-01"
+owner: "Daniel Paez"
+
+related_gates:
+  - "Gate 0 — Scope & Permission"
+  - "Gate 1 — Product, Asset & Data Inventory"
+  - "Gate 11 — Infrastructure, DNS, TLS & Web Hardening"
+
+scope:
+  summary: "Public throwaway Grok choreography sandbox for Drydock-on-Grok v1 live-fire of kernel, hooks, CI, check_verdict.py, and LaunchGuardian. Not a client project. Not a production product."
+  launch_type: "not_a_production_launch"
+  environments:
+    - name: "git-main"
+      purpose: "Public GitHub source of truth for the sandbox tree"
+      public_exposure: "public repository https://github.com/danizeap/drydock-grok-sandbox"
+    - name: "github-actions-ubuntu-latest"
+      purpose: "Fail-closed CI job named drydock"
+      public_exposure: "workflow logs on the public repo"
+    - name: "shared-grok-vm"
+      purpose: "Local live-fire of kernel/hooks/scanners; run ledger outside the tree"
+      public_exposure: "not a public product surface"
+
+  in_scope:
+    - "This git tree (kernel, hooks, scripts, tests, sdd-plus, CI workflow)"
+    - "GitHub Actions job drydock on ubuntu-latest"
+    - "LaunchGuardian project-mode scan of this tree"
+    - "Local scanner install under /home/box/.local/bin on the shared VM"
+  out_of_scope:
+    - "Client trees and LOQ files (must not be copied here)"
+    - "conductor/ on this VM"
+    - "Production deployment, customer users, payments, or hosted product"
+    - "The run ledger at /home/box/drydock-state/drydock-grok-sandbox/ (must not enter this git tree)"
+    - "The grok-choreography-smoke packet (not this bootstrap)"
+  assumptions:
+    - "This repo is a throwaway LITE sandbox, not a production ship."
+    - "Absence of evidence is never evidence of absence; quiet scanners fail closed."
+    - "Owner has not approved a production launch because there is none."
+  open_questions:
+    - "None blocking sandbox bootstrap. Production launch is intentionally not in play."
+
+users_and_access:
+  intended_users:
+    - "Daniel (Owner)"
+    - "Drydock-on-Grok v1 room (Choreographer + Verifier teammate)"
+    - "Claude Code and Codex as CLI processes on the VM, not product users"
+  excluded_users:
+    - "Customers"
+    - "Anonymous product users"
+  admin_or_operator_roles:
+    - "Owner (Daniel) via GitHub and the shared VM"
+
+external_boundaries:
+  domains:
+    - "github.com/danizeap/drydock-grok-sandbox"
+  third_party_services:
+    - name: "GitHub"
+      purpose: "git remote, Actions CI, branch protection"
+      data_shared: "public source tree and CI logs"
+    - name: "PyPI"
+      purpose: "pip install pytest and semgrep in CI"
+      data_shared: "package downloads only"
+    - name: "GitHub Releases (gitleaks, trivy)"
+      purpose: "pinned scanner binaries"
+      data_shared: "binary downloads only"
+  inbound_integrations:
+    - "GitHub Actions push/pull_request events"
+  outbound_integrations:
+    - "git push to origin"
+    - "gh for Actions status"
+    - "pip/git install of launchguardian-cli@fix/scanner-evidence-fail-closed"
+
+launch_constraints:
+  must_have:
+    - "Fail-closed CI job named drydock"
+    - "Honest LGF files that do not fake a clean production ship"
+    - "Scanners installed before LaunchGuardian scan in CI"
+  must_not_do:
+    - "Force-push or delete main"
+    - "Weaken ci_parse_lg_report.py"
+    - "Copy client/LOQ files or run conductor/"
+    - "Commit ledger files into this tree"
+  rollback_or_disable_path: "Delete or archive the public sandbox repo; disable the drydock workflow; VM ledger stays outside git. There is no production traffic to drain."

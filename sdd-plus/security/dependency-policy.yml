@@ -1,0 +1,57 @@
+# Dependency policy for drydock-grok-sandbox (throwaway LITE sandbox).
+project: "drydock-grok-sandbox"
+date: "2026-09-01"
+owner: "Daniel Paez"
+
+related_gates:
+  - "Gate 10 — Dependency, SBOM & Supply Chain"
+
+policy:
+  package_managers:
+    - "pip (CI and VM)"
+  lockfiles_required: false
+  allowed_registries:
+    - "PyPI"
+    - "GitHub (launchguardian-cli pin, gitleaks/trivy releases, actions/* by SHA)"
+  prohibited_dependencies:
+    - name_or_pattern: "released LaunchGuardian 0.2.0 from PyPI"
+      reason: "PROJECT_CONTEXT.md: use git+https://github.com/danizeap/launchguardian-cli@fix/scanner-evidence-fail-closed"
+  license_constraints:
+    allowed: []
+    review_required: []
+    prohibited: []
+
+review_rules:
+  new_runtime_dependency:
+    requires_review: true
+    reviewer: "Daniel Paez"
+  new_build_or_dev_dependency:
+    requires_review: true
+    reviewer: "Daniel Paez"
+  dependency_with_install_scripts:
+    requires_review: true
+    reviewer: "Daniel Paez"
+  unmaintained_or_deprecated_dependency:
+    requires_review: true
+    reviewer: "Daniel Paez"
+
+vulnerability_thresholds:
+  critical: "block_launch"
+  high: "block_or_human_acceptance_required"
+  medium: "mitigate_or_track"
+  low: "track"
+
+update_cadence:
+  security_updates: "as needed for this throwaway sandbox"
+  routine_updates: "not a maintained product; pins are explicit"
+
+evidence:
+  audit_commands:
+    - "python3 -m pip list"
+    - "launchguardian scan --target . --strict-scanners"
+  lockfiles: []
+  exceptions:
+    - "No application lockfile: this tree vendors Drydock kernel files and installs CI tools at scan time."
+    - "Actions are SHA-pinned (checkout v7.0.1, setup-python v7.0.0)."
+    - "gitleaks 8.30.1 and trivy 0.74.0 installed from official GitHub release tarballs with SHA256 verification."
+    - "semgrep 1.175.0 installed from PyPI."

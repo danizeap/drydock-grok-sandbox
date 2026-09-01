@@ -1,0 +1,74 @@
+# Data inventory for drydock-grok-sandbox (throwaway LITE sandbox).
+project: "drydock-grok-sandbox"
+change: "bootstrap-lgf-packet"
+date: "2026-09-01"
+owner: "Daniel Paez"
+
+related_gates:
+  - "Gate 1 — Product, Asset & Data Inventory"
+  - "Gate 14 — Privacy, Legal & Data Lifecycle"
+  - "Gate 18 — Backup, Recovery, Deletion & Rotation"
+
+data_classes:
+  - name: "public-source"
+    category: "source-code"
+    examples:
+      - "Python kernel/hooks"
+      - "LGF YAML/Markdown"
+      - "CI workflow"
+    sensitivity: "public"
+    source: "this git tree"
+    storage_location: "GitHub public repo"
+    retention: "git history"
+    deletion_path: "repo delete/archive"
+    encryption_or_protection: "HTTPS to GitHub; repo is public"
+    access_roles:
+      - "anyone can read"
+      - "danizeap can write"
+  - name: "ci-logs"
+    category: "operational"
+    examples:
+      - "GitHub Actions logs"
+      - "LaunchGuardian reports (generated, gitignored)"
+    sensitivity: "low"
+    source: "CI runners"
+    storage_location: "GitHub Actions; local reports/ (gitignored)"
+    retention: "GitHub default log retention"
+    deletion_path: "delete workflow runs / wipe local reports/"
+    encryption_or_protection: "GitHub platform controls"
+    access_roles:
+      - "public workflow logs on a public repo"
+
+data_flows:
+  - name: "source-to-github"
+    from: "shared VM working tree"
+    to: "GitHub origin main"
+    purpose: "version control of the sandbox"
+    transport_protection: "HTTPS git"
+    third_parties:
+      - "GitHub"
+  - name: "ci-scan"
+    from: "checked-out tree on ubuntu-latest"
+    to: "LaunchGuardian report JSON (gitignored) + Actions logs"
+    purpose: "fail-closed security gate"
+    transport_protection: "GitHub Actions"
+    third_parties:
+      - "GitHub"
+      - "PyPI (semgrep)"
+      - "GitHub Releases (gitleaks, trivy)"
+
+privacy:
+  personal_data_present: false
+  sensitive_data_present: false
+  production_data_present: false
+  user_notice_or_consent: "n/a — no product users"
+  data_subject_request_path: "n/a"
+  retention_policy: "git history of a throwaway public sandbox"
+
+prohibited_data:
+  - type: "client/LOQ files"
+    prevention_or_detection: "PROJECT_CONTEXT.md + owner instruction; do not copy into this tree"
+  - type: "secrets / .env / credentials"
+    prevention_or_detection: "hooks/protect_secrets.py, .gitignore, gitleaks in CI"
+  - type: "run ledger files"
+    prevention_or_detection: "ledger lives at /home/box/drydock-state/drydock-grok-sandbox/ and must not be committed"

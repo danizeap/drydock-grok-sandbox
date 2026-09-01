@@ -1,0 +1,365 @@
+# Project LGF gate applicability for drydock-grok-sandbox.
+# Throwaway LITE sandbox — NOT a production launch. Do not treat this as a clean ship.
+# Copied from sdd-plus/security/gate-applicability.output.template.yml and filled from repo evidence.
+project: "drydock-grok-sandbox"
+change: "bootstrap-lgf-packet"
+date: "2026-09-01"
+owner: "Daniel Paez"
+reviewer: ""
+
+source_of_truth:
+  - "sdd-plus/specs/launchguardian-framework.md"
+  - "sdd-plus/standards/security-shipping-standards.md"
+  - "sdd-plus/security/gate-applicability.template.yml"
+  - "PROJECT_CONTEXT.md"
+
+high_risk_skip_rule:
+  rule: "For any high-risk gate, applies: false is invalid unless human_confirmation_required, confirmed_by, confirmed_at, reason, and evidence are filled."
+  required_when_high_risk_gate_is_skipped:
+    human_confirmation_required: true
+    confirmed_by: "required"
+    confirmed_at: "required"
+    reason: "required"
+    evidence: "required"
+
+always_on_gates:
+  - "Gate 0 — Scope & Permission"
+  - "Gate 1 — Product, Asset & Data Inventory"
+  - "Gate 3 — Code Security"
+  - "Gate 4 — Secrets & Config Hygiene"
+  - "Gate 10 — Dependency, SBOM & Supply Chain"
+  - "Gate 17 — Observability, Logs & Incident Readiness"
+  - "Gate 20 — Launch Decision"
+
+gates:
+  - gate_id: 0
+    gate_name: "Gate 0 — Scope & Permission"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Scope is this public throwaway repo only. PROJECT_CONTEXT.md and README.md state it is not a client project."
+        reference: "PROJECT_CONTEXT.md"
+      - type: "human_statement"
+        detail: "Owner asked for Drydock-on-Grok v1 sandbox bootstrap on this repo; no client/LOQ trees."
+        reference: ""
+    reason: "Always-on. Scope is the sandbox repo plus GitHub Actions on ubuntu-latest."
+    human_confirmation_required: true
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Owner has not signed Gate 0 as a production-launch approval. This file is sandbox inventory, not launch sign-off."
+
+  - gate_id: 1
+    gate_name: "Gate 1 — Product, Asset & Data Inventory"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Python kernel/hooks/scripts/tests, GitHub Actions workflow, sdd-plus templates. No app frontend, API server, or datastore."
+        reference: "sdd-plus/security/product-inventory.yml"
+    reason: "Always-on. Inventory exists and describes a non-product sandbox."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 2
+    gate_name: "Gate 2 — Threat Modeling"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "AI-agent choreography sandbox with repo-local hooks, GitHub write, and LaunchGuardian CI. Threat model recorded."
+        reference: "sdd-plus/security/threat-model.md"
+    reason: "Agent tooling plus public GitHub write is high-impact even though this is not a product launch."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 3
+    gate_name: "Gate 3 — Code Security"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Python kernel, hooks, and CI scripts exist and are executed."
+        reference: "scripts/, hooks/, kernel/"
+    reason: "Always-on. Code exists."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 4
+    gate_name: "Gate 4 — Secrets & Config Hygiene"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "config_evidence"
+        detail: "GitHub Actions uses GITHUB_TOKEN implicitly. Repo has protect_secrets hook and .gitignore for secrets. No .env in tree."
+        reference: ".github/workflows/drydock.yml, hooks/protect_secrets.py, .gitignore"
+    reason: "Always-on. CI and git remotes imply credential handling even without app secrets in tree."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 5
+    gate_name: "Gate 5 — Frontend Exposure"
+    applies: false
+    high_risk: false
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No package.json, no HTML/JS app, no public/ or frontend/ directory, no static site config."
+        reference: "repository root listing"
+    reason: "No browser-delivered product. This is a Python kernel/hooks sandbox."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 6
+    gate_name: "Gate 6 — API Auth & Object Authorization"
+    applies: false
+    high_risk: false
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No HTTP API, RPC, GraphQL, or backend route files. Tests are local pytest."
+        reference: "tests/, scripts/"
+    reason: "No product API surface."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 7
+    gate_name: "Gate 7 — Injection & Input Safety"
+    applies: true
+    confidence: "medium"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Repo-local hooks parse JSON stdin from agent tool payloads. start_probe.py and CI invoke those hooks."
+        reference: "hooks/, scripts/start_probe.py"
+    reason: "Untrusted tool-payload JSON crosses a trust boundary into hook parsers. Not a public web form."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 8
+    gate_name: "Gate 8 — Auth, Sessions & CSRF"
+    applies: false
+    high_risk: false
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No login, sessions, cookies, OAuth, or password-reset code in this tree."
+        reference: "repository search: no auth app"
+    reason: "No product authentication."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 9
+    gate_name: "Gate 9 — File Upload, SSRF, Imports & Exports"
+    applies: false
+    high_risk: false
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No upload routes, file parsers, or server-side URL fetch product flows."
+        reference: "repository root listing"
+    reason: "No upload/import/export product surface."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 10
+    gate_name: "Gate 10 — Dependency, SBOM & Supply Chain"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "CI pip-installs pytest, LaunchGuardian from a git URL, semgrep from PyPI, and downloads gitleaks/trivy release tarballs. Actions pinned by full SHA."
+        reference: ".github/workflows/drydock.yml, sdd-plus/security/dependency-policy.yml"
+    reason: "Always-on. CI and scanners are supply-chain inputs."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 11
+    gate_name: "Gate 11 — Infrastructure, DNS, TLS & Web Hardening"
+    applies: false
+    high_risk: false
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No deploy config, DNS, CDN, WAF, or owned hostname. Public GitHub repo hosting is GitHub-operated, not a product deploy."
+        reference: "README.md, .github/workflows/drydock.yml"
+    reason: "No product infrastructure. GitHub hosts the public git remote."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 12
+    gate_name: "Gate 12 — Resilience, DDoS, Abuse & Cost Defense"
+    applies: false
+    high_risk: false
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No public service, paid AI API in-tree, or rate-limit-sensitive product endpoint."
+        reference: "PROJECT_CONTEXT.md"
+    reason: "Not a public service. CI cost is GitHub Actions minutes on a throwaway sandbox."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 13
+    gate_name: "Gate 13 — Webhooks, Background Jobs & Integrations"
+    applies: false
+    high_risk: false
+    confidence: "medium"
+    evidence:
+      - type: "repo_evidence"
+        detail: "GitHub Actions is CI, not a product webhook receiver. No workers, queues, or third-party OAuth scopes in-tree."
+        reference: ".github/workflows/drydock.yml"
+    reason: "No product async/integration surface. CI push/PR triggers are GitHub-native."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 14
+    gate_name: "Gate 14 — Privacy, Legal & Data Lifecycle"
+    applies: false
+    high_risk: false
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No user PII, production data, or retention/deletion product flows. Data inventory records none."
+        reference: "sdd-plus/security/data-inventory.yml"
+    reason: "Throwaway public sandbox; no personal or production data in this tree."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 15
+    gate_name: "Gate 15 — AI/RAG/Agent Security"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "This repo exists to live-fire Drydock-on-Grok v1 agent choreography (hooks, kernel, CI) on a shared VM."
+        reference: "PROJECT_CONTEXT.md, agents/verifier.md, hooks/"
+    reason: "Agent/tool-chain sandbox. Not a customer RAG product, but Gate 15 still applies."
+    lethal_trifecta:
+      private_data_access: true
+      untrusted_content_exposure: true
+      outbound_channel: true
+      broken_leg: "private_data_access"
+      mitigation: "No customer, tenant, or production data is stored in this public throwaway tree. The run ledger lives outside the git tree. Agent outbound is GitHub for this public sandbox only. This is not a production launch; Gate 20 remains BLOCKED. RLS/read-only is not claimed as a mitigation."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Owner has not accepted residual agent-host risk as a production launch risk; sandbox only."
+
+  - gate_id: 16
+    gate_name: "Gate 16 — Multi-Tenant & Internal Permission Isolation"
+    applies: false
+    high_risk: false
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No tenant/org/workspace/account model or cross-user permission code."
+        reference: "PROJECT_CONTEXT.md"
+    reason: "Single throwaway sandbox, not a multi-tenant product."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 17
+    gate_name: "Gate 17 — Observability, Logs & Incident Readiness"
+    applies: true
+    confidence: "medium"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Observability is GitHub Actions logs plus local LaunchGuardian reports. No production incident process."
+        reference: ".github/workflows/drydock.yml"
+    reason: "Always-on. Coverage is CI logs only; this is not production-ready observability."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 18
+    gate_name: "Gate 18 — Backup, Recovery, Deletion & Rotation"
+    applies: false
+    high_risk: false
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No persistent user/business datastore. Git history on GitHub is the only retention."
+        reference: "sdd-plus/security/data-inventory.yml"
+    reason: "No product data to back up or delete."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 19
+    gate_name: "Gate 19 — Business Logic Abuse"
+    applies: false
+    high_risk: false
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No plans, payments, credits, invites, quotas, or entitlements."
+        reference: "PROJECT_CONTEXT.md"
+    reason: "Not a commercial product."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+
+  - gate_id: 20
+    gate_name: "Gate 20 — Launch Decision"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Launch decision file records BLOCKED / not a production launch."
+        reference: "sdd-plus/security/launch-decision.md"
+    reason: "Always-on. Explicit decision is BLOCKED: this sandbox is not shipping to users."
+    human_confirmation_required: true
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "No owner production-launch approval exists; none should, because this is a throwaway sandbox."
+
+  - gate_id: 21
+    gate_name: "Gate 21 — Continuous Monitoring"
+    applies: false
+    high_risk: false
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "PROJECT_CONTEXT.md: throwaway sandbox, not production, no live users. CI is a fail-closed gate, not production monitoring."
+        reference: "PROJECT_CONTEXT.md, sdd-plus/security/launch-decision.md"
+    reason: "Not a production launch. Continuous monitoring of live users does not apply."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []

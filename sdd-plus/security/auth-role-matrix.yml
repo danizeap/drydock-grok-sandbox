@@ -1,0 +1,58 @@
+# Auth role matrix for drydock-grok-sandbox.
+# No product auth exists. Recorded so the inventory is explicit, not skipped-by-omission.
+project: "drydock-grok-sandbox"
+change: "bootstrap-lgf-packet"
+date: "2026-09-01"
+owner: "Daniel Paez"
+
+related_gates:
+  - "Gate 6 — API Auth & Object Authorization"
+  - "Gate 8 — Auth, Sessions & CSRF"
+  - "Gate 16 — Multi-Tenant & Internal Permission Isolation"
+
+authentication:
+  required: false
+  provider: "none in product; GitHub accounts for git/CI"
+  session_management: "none"
+  mfa_required_for_admins: "unknown"
+  password_or_secret_handling: "No app secrets in tree. GitHub credentials stay in GitHub/VM, not in git."
+
+roles:
+  - name: "owner"
+    description: "Daniel Paez — GitHub owner and VM operator"
+    assigned_by: "existing GitHub ownership"
+    review_frequency: "n/a for throwaway sandbox"
+  - name: "public-reader"
+    description: "Anyone can clone the public repo"
+    assigned_by: "public visibility"
+    review_frequency: "n/a"
+
+permissions:
+  - action: "read source"
+    anonymous: true
+    user: true
+    admin: true
+    operator: true
+    notes: "public repository"
+  - action: "push to main"
+    anonymous: false
+    user: false
+    admin: true
+    operator: false
+    notes: "branch protection requires drydock check; no force-push; no deletion"
+
+authorization_checks:
+  server_side_enforced: false
+  client_side_only_controls: []
+  object_level_authorization: false
+  tenant_or_account_isolation: false
+
+privileged_access:
+  admin_surfaces:
+    - "GitHub repo settings"
+    - "shared Grok VM shell"
+  break_glass_access: "Owner GitHub account / VM access. No product break-glass."
+  audit_logging: "GitHub audit / Actions history"
+
+open_questions:
+  - "None for product auth; there is no product auth."
