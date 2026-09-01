@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+"""Drydock git pre-push backstop — reject --force even on a fast-forward.
+
+GitHub allow_force_pushes=false does not reject a fast-forward sent with --force.
+Claude PreToolUse git_safety.py does not wrap Grok Shell. This hook is
+agent-agnostic: it inspects ancestor command lines via Linux /proc.
+
+Fail-mode:
+- force / mirror / +refspec found on an ancestor git-push command -> fail CLOSED
+- dest is refs/heads/main and the update is a non-fast-forward or a delete -> fail CLOSED
+- cannot read /proc -> do not brick ordinary feature-branch pushes (fail OPEN
+  unless stdin shows a main non-FF or main delete)
+"""
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+
+def _cmdline(pid: int) -> list[str] | None:
+    try:
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+    except OSError:
+        return None
+    if not raw:
+        return None
+    return [p.decode("utf-8", "replace") for p in raw.split(b"\0") if p]
+
+
+def _ppid(pid: int) -> int | None:
+    try:
+        text = Path(f"/proc/{pid}/status").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    for line in text.splitlines():
+        if line.startswith("PPid:"):
+            try:
+                return int(line.split()[1])
+            except (IndexError, ValueError):
+                return None
+    return None
+
+
+def _ancestors(start: int, limit: int = 16) -> list[list[str]]:
+    out: list[list[str]] = []
+    pid: int | None = start
+    seen: set[int] = set()
+    for _ in range(limit):
+        if pid is None or pid <= 1 or pid in seen:
+            break
+        seen.add(pid)
+        cmd = _cmdline(pid)
+        if cmd:
+            out.append(cmd)
+        pid = _ppid(pid)
+    return out
+
+
+def _is_short_force(tok: str) -> bool:
+    return tok.startswith("-") and not tok.startswith("--") and "f" in tok[1:]
+
+
+def _push_force_reason(argv: list[str]) -> str | None:
+    """Return a reason if this argv is a forced/mirrored/plus git push."""
+    bases = []
+    for i, tok in enumerate(argv):
+        b = tok[:-4] if tok.lower().endswith(".exe") else tok
+        if b == "git" or b.endswith("/git") or b.endswith("\\git") or b == "git-push" or b.endswith("/git-push"):
+            bases.append(i)
+    if not bases:
+        joined = " ".join(argv)
+        if "git" in joined and ("push" in joined):
+            # last-ditch: unparsed
+            if "--force" in argv or "-f" in argv or "--mirror" in argv:
+                return "force/mirror push"
+        return None
+    for idx in bases:
+        rest = argv[idx + 1 :]
+        # git-push binary: rest is already push args. git: find subcommand push.
+        if argv[idx].endswith("git-push") or argv[idx].endswith("/git-push"):
+            args = rest
+        else:
+            # skip git globals similar to git_safety
+            i = 0
+            skip_arg = {
+                "-C", "-c", "--git-dir", "--work-tree", "--namespace",
+                "--super-prefix", "--exec-path", "--config-env",
+            }
+            sub = None
+            while i < len(rest):
+                t = rest[i]
+                if t.startswith("--") and "=" in t:
+                    i += 1
+                    continue
+                if t in skip_arg:
+                    i += 2
+                    continue
+                if t.startswith("-"):
+                    i += 1
+                    continue
+                sub = t
+                args = rest[i + 1 :]
+                break
+            else:
+                continue
+            if sub != "push":
+                continue
+        lease = any(t == "--force-with-lease" or t.startswith("--force-with-lease=") for t in args)
+        plus = any(t.startswith("+") and not t.startswith("--") for t in args)
+        force = ("--force" in args) or ("-f" in args) or any(_is_short_force(t) and t != "-f" and "f" in t[1:] for t in args) or ("--mirror" in args) or plus
+        # -f exactly
+        if "-f" in args:
+            force = True
+        if force:
+            if lease and not (("--force" in args) or ("-f" in args) or ("--mirror" in args) or plus):
+                return None
+            return "force/mirror/+refspec push (rejected even on a fast-forward)"
+    return None
+
+
+def _is_zero(sha: str) -> bool:
+    return set(sha) <= {"0"}
+
+
+def _stdin_main_rewrite(lines: list[str]) -> str | None:
+    for line in lines:
+        parts = line.split()
+        if len(parts) != 4:
+            continue
+        local_ref, local_sha, remote_ref, remote_sha = parts
+        if remote_ref not in ("refs/heads/main", "refs/heads/master"):
+            continue
+        if _is_zero(local_sha):
+            return f"delete of {remote_ref}"
+        if not _is_zero(remote_sha):
+            # non-FF if remote_sha is not an ancestor of local_sha
+            import subprocess
+            try:
+                p = subprocess.run(
+                    ["git", "merge-base", "--is-ancestor", remote_sha, local_sha],
+                    capture_output=True,
+                )
+            except OSError:
+                p = None
+            if p is not None and p.returncode != 0:
+                return f"non-fast-forward update of {remote_ref}"
+    return None
+
+
+def main() -> int:
+    ancestors = _ancestors(os.getppid())
+    force_reason = None
+    for argv in ancestors:
+        force_reason = _push_force_reason(argv)
+        if force_reason:
+            break
+    stdin_lines = [ln.strip() for ln in sys.stdin.read().splitlines() if ln.strip()]
+    main_reason = _stdin_main_rewrite(stdin_lines)
+    if force_reason:
+        sys.stderr.write(
+            "BLOCKED by Drydock pre-push: "
+            + force_reason
+            + ".\nOwner must run a forced push themselves if it is truly required.\n"
+        )
+        return 1
+    if main_reason:
+        sys.stderr.write(
+            "BLOCKED by Drydock pre-push: "
+            + main_reason
+            + ".\n"
+        )
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
