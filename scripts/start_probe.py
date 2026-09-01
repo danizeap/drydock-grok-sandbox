@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -187,13 +188,42 @@ def check_secret_tree() -> list[str]:
     return [detail[-1] if detail else f"check_secret_tree exit {proc.returncode}"]
 
 
+def check_discover(**kwargs) -> tuple[list[str], str]:
+    """Fail closed when no installed Codex core is findable.
+
+    Token-free: imports and calls discover_core() only; never spawns the Codex CLI.
+    Returns (errors, skipped_reason). skipped_reason is "" unless the check was skipped.
+    """
+    if os.environ.get("GITHUB_ACTIONS"):
+        return [], ("skipped on GitHub Actions: hosted runners have no Codex core; "
+                    "discovery is enforced on developer machines only")
+
+    scripts_dir = str(ROOT / "scripts")
+    if scripts_dir not in sys.path:          # real membership guard: repeated calls
+        sys.path.insert(0, scripts_dir)      # (tests call this many times) must not grow sys.path
+    try:
+        from conductor.codex_bridge import discover_core
+    except Exception as e:
+        return [f"cannot import discover_core: {e}"], ""
+    try:
+        core = discover_core(**kwargs)
+    except Exception as e:
+        return [f"discover_core raised: {e}"], ""
+    if not core:
+        return ["no Codex core found: discover_core() returned None; "
+                "coplan would fail closed later at negotiate stage 'discover'"], ""
+    return [], ""
+
+
 def main() -> int:
     pin_errors = check_pins()
     hook_errors, evidence = check_hooks()
     secret_tree_errors = check_secret_tree()
     pre_push_errors = ensure_pre_push(ROOT)
     pre_commit_errors = ensure_pre_commit(ROOT)
-    errors = pin_errors + hook_errors + secret_tree_errors + pre_push_errors + pre_commit_errors
+    discover_errors, discover_skipped = check_discover()
+    errors = (pin_errors + hook_errors + secret_tree_errors
+              + pre_push_errors + pre_commit_errors + discover_errors)
     result = {
         "ok": not errors,
         "pin_errors": pin_errors,
@@ -201,6 +231,8 @@ def main() -> int:
         "secret_tree_errors": secret_tree_errors,
         "pre_push_errors": pre_push_errors,
         "pre_commit_errors": pre_commit_errors,
+        "discover_errors": discover_errors,
+        "discover_skipped": discover_skipped,
         "hook_evidence": evidence,
     }
     print(json.dumps(result, indent=2))
