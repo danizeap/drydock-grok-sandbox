@@ -13,14 +13,33 @@ import argparse
 import datetime
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 REQUIRED_FILES = ["brief.md", "plan.md", "tasks.md", "decision-log.md", "verification.md"]
 SDD_DIRS = ["sdd-plus", "sdd-plus/standards", "sdd-plus/specs",
             "sdd-plus/specs/capabilities", "sdd-plus/changes",
             "sdd-plus/archive", "sdd-plus/templates"]
 KEBAB = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+VERIFIER_REPORT = "verifier-report.md"
+VERIFIER_SHA = "verifier-report.sha256"
+BOUND_VERDICTS = ("VERIFIED", "VERIFIED WITH NOTES")
+CHECK_VERDICT = Path(__file__).resolve().parent / "check_verdict.py"
+
+_SHA256_HEX = re.compile(r"^[0-9a-fA-F]{64}$")
+# CLOSED over every tasks.md in this repo -- 6 archived + 1 live + the template,
+# audited line by line (plan.md section E.1). Two scopes, one phrase:
+#   line form    archive/2026-09-02-grok-refuse-brief-engine/tasks.md:57
+#                archive/2026-09-02-grok-coplan-closure-gate/tasks.md:47
+#   section form archive/2026-09-01-grok-choreography-smoke/tasks.md:18
+# Anchored on "verifier", NEVER on "verif": a bare `## Verification` heading over
+# implementer-run commands exists at
+# archive/2026-09-01-grok-coplan-linux-discover/tasks.md:26 and must NOT waive its
+# five tasks. See plan.md sections A.3/E and brief.md OQ-4.
+_VERIFIER_OWNED = re.compile(r"\bverifier\s+sub-?agent\b", re.IGNORECASE)
 
 
 def find_root(require: bool = True) -> Path:
@@ -241,26 +260,213 @@ def delta_heading_issues(delta_file: Path) -> list[str]:
     return issues
 
 
-def packet_unfilled(change_dir: Path) -> list[str]:
-    """Required files still carrying template placeholders or a pending Result."""
-    unfilled = []
+def packet_unfilled_reasons(change_dir: Path) -> tuple[list[str], list[str]]:
+    """(files with template placeholders, files whose Result is still pending).
+
+    packet_unfilled() is the union of the two and keeps its exact current
+    behavior; this split exists because only the SECOND is verifier-owned and so
+    only the second is waivable by a bound verdict."""
+    placeholders, result_pending = [], []
     for fname in REQUIRED_FILES:
         f = change_dir / fname
         if not f.is_file():
             continue
         text = f.read_text(encoding="utf-8-sig")
-        if text_has_placeholder(text) or (
-            fname == "verification.md" and verification_result_is_pending(text)
-        ):
-            unfilled.append(fname)
-    return unfilled
+        if text_has_placeholder(text):
+            placeholders.append(fname)
+        if fname == "verification.md" and verification_result_is_pending(text):
+            result_pending.append(fname)
+    return placeholders, result_pending
 
 
-def archive_readiness(change_dir: Path, caps_dir: Path) -> list[tuple[str, str]]:
-    """The single, pure, read-only list of WAIVABLE blockers between a packet and
+def packet_unfilled(change_dir: Path) -> list[str]:
+    """Required files still carrying template placeholders or a pending Result."""
+    placeholders, result_pending = packet_unfilled_reasons(change_dir)
+    return [f for f in REQUIRED_FILES
+            if f in placeholders or f in result_pending]
+
+
+def _flatten(text: str) -> str:
+    """Markdown emphasis stripped and whitespace collapsed, so `verifier` subagent,
+    **verifier subagent** and 'verifier\n      subagent' all normalize the same."""
+    return " ".join(text.replace("`", "").replace("*", "").replace("_", " ").split())
+
+
+class VerdictBinding(NamedTuple):
+    ok: bool          # a bound VERIFIED / VERIFIED WITH NOTES verdict is on disk
+    verdict: str      # the exact verdict line, "" unless ok
+    digest: str       # the expected sha256 from the sidecar, "" unless ok
+    reason: str       # "" when NOTHING was claimed; else why the claim did not bind
+
+
+def verdict_line(text: str) -> str:
+    """The single non-empty line under `## Verdict`, or "" if absent or ambiguous.
+
+    Deliberately strict: exactly one non-empty line before the next heading. A
+    Verdict section carrying prose beside the verdict is not machine-decidable, so
+    it returns "" and the packet fails closed to --force. Mirrors the shape of
+    verification_result_is_pending (scripts/sdd.py:204-217)."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if re.match(r"^##\s+Verdict\s*$", line, re.IGNORECASE):
+            collected = []
+            for nxt in lines[i + 1:]:
+                if re.match(r"^#{1,6}\s", nxt):
+                    break
+                if nxt.strip():
+                    collected.append(nxt.strip())
+            return collected[0] if len(collected) == 1 else ""
+    return ""
+
+
+def sidecar_digest(text: str) -> str:
+    """The expected sha256 from verifier-report.sha256, or "" if malformed.
+
+    Grammar: exactly one non-empty, non-'#' line. Its first whitespace-separated
+    token must be 64 hex chars. A second token is allowed only if it names the
+    report, so the sidecar can be produced either by pasting the in-channel hex or
+    by running `sha256sum verifier-report.md` (whose output is `<hex>  <name>`, or
+    `<hex> *<name>` in binary mode). Anything else fails closed."""
+    body = [l.strip() for l in text.splitlines()
+            if l.strip() and not l.strip().startswith("#")]
+    if len(body) != 1:
+        return ""
+    parts = body[0].split()
+    if not _SHA256_HEX.match(parts[0]):
+        return ""
+    if len(parts) == 1:
+        return parts[0]
+    if len(parts) == 2 and parts[1].lstrip("*") == VERIFIER_REPORT:
+        return parts[0]
+    return ""
+
+
+def verdict_binding(change_dir: Path) -> VerdictBinding:
+    """Is an independent verifier verdict BOUND to bytes in this packet?
+
+    Bound means all four, in this order:
+      1. verifier-report.md and verifier-report.sha256 both exist;
+      2. the sidecar parses to one sha256 hex digest;
+      3. the report's `## Verdict` section is exactly one line, and that line is
+         exactly "VERIFIED" or "VERIFIED WITH NOTES";
+      4. `python3 scripts/check_verdict.py <report> <digest> <that exact line>`
+         exits 0 --- the existing pinned hasher is the bind, run as the CLI, so
+         archive runs the same command the Owner ran in channel.
+
+    Step 3 is what decides the verdict, NOT step 4: check_verdict's string test is
+    a substring OR whole-line test (scripts/check_verdict.py:40-43), and "VERIFIED"
+    is a substring of "NOT VERIFIED" (tests/test_check_verdict.py:40). Because the
+    string handed to check_verdict is the line this function already extracted and
+    whitelisted, that test is a tautology here by construction and can never widen
+    what is accepted. NOT VERIFIED is rejected at step 3 and check_verdict is never
+    reached with required="VERIFIED".
+
+    Fails closed everywhere: any OSError, decode error, timeout, missing
+    check_verdict.py, or non-zero exit yields ok=False with a stated reason.
+    reason == "" means nothing was claimed, which is not a fault.
+
+    Spawns AT MOST ONE subprocess, never in a loop, and only after steps 1-3 have
+    already passed on cheap file reads -- so an unclaimed packet costs zero
+    spawns. Operational policy, spawn budget per CLI command and the measured
+    per-spawn cost: plan.md section F."""
+    report = change_dir / VERIFIER_REPORT
+    sidecar = change_dir / VERIFIER_SHA
+    if not report.is_file() and not sidecar.is_file():
+        return VerdictBinding(False, "", "", "")
+    if not report.is_file():
+        return VerdictBinding(False, "", "", f"{VERIFIER_SHA} present but "
+                                             f"{VERIFIER_REPORT} is missing")
+    if not sidecar.is_file():
+        return VerdictBinding(False, "", "", f"no {VERIFIER_SHA} sidecar: write the "
+                                             "sha256 the verifier stated in channel "
+                                             "for these exact report bytes")
+    try:
+        expected = sidecar_digest(sidecar.read_text(encoding="utf-8-sig"))
+        verdict = verdict_line(report.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeDecodeError) as e:
+        return VerdictBinding(False, "", "", f"cannot read verdict artifacts: {e}")
+    if not expected:
+        return VerdictBinding(False, "", "", f"{VERIFIER_SHA} must hold one line of "
+                                             "64 hex characters (optionally followed "
+                                             f"by {VERIFIER_REPORT})")
+    if verdict not in BOUND_VERDICTS:
+        shown = verdict or "no single-line '## Verdict' section"
+        return VerdictBinding(False, "", "", f"verdict is {shown!r}; archive binds only "
+                                             + " or ".join(repr(v) for v in BOUND_VERDICTS))
+    if not CHECK_VERDICT.is_file():
+        return VerdictBinding(False, "", "", f"missing {CHECK_VERDICT.name}")
+    try:
+        proc = subprocess.run([sys.executable, str(CHECK_VERDICT),
+                               str(report.resolve()), expected, verdict],
+                              capture_output=True, text=True, timeout=30)
+    except subprocess.TimeoutExpired:
+        return VerdictBinding(False, "", "", f"{CHECK_VERDICT.name} timed out after 30s")
+    except (OSError, subprocess.SubprocessError) as e:
+        return VerdictBinding(False, "", "", f"cannot run {CHECK_VERDICT.name}: {e}")
+    if proc.returncode != 0:
+        tail = (proc.stderr or "").strip().splitlines()
+        return VerdictBinding(False, "", "", f"{CHECK_VERDICT.name} exit "
+                                             f"{proc.returncode}"
+                                             + (f": {tail[-1]}" if tail else ""))
+    return VerdictBinding(True, verdict, expected, "")
+
+
+def verifier_owned_pending(tasks_path: Path) -> tuple[int, int]:
+    """(pending tasks the verifier owns, pending tasks anyone else owns).
+
+    Verifier-owned means the normalized phrase 'verifier subagent' (or
+    'sub-agent') appears EITHER on the task's own checkbox line OR on the level-2
+    heading that encloses it. CLOSED over every tasks.md in this repo -- six
+    archived, one live, one template (plan.md section E.1):
+      * line form     -- archive/2026-09-02-grok-refuse-brief-engine/tasks.md:57
+                         archive/2026-09-02-grok-coplan-closure-gate/tasks.md:47
+      * section form  -- archive/2026-09-01-grok-choreography-smoke/tasks.md:18,
+                         whose four pending tasks at :20-23 never name the verifier.
+      * NOT a match   -- archive/2026-09-01-grok-coplan-linux-discover/tasks.md:26,
+                         a bare `## Verification` heading whose five tasks at :28-33
+                         are implementer-run commands (pytest, start_probe,
+                         negotiate, launchguardian). Anchoring on 'verifier' and
+                         never on 'verif' is what keeps those five blocked.
+      * NOT a match   -- free prose naming the verifier subagent inside a notes
+                         block: docs-coplan-runtime/tasks.md:45-46,
+                         coplan-closure-gate/tasks.md:56,
+                         refuse-brief-engine/tasks.md:18-19. Only `^##(?!#) ` lines
+                         and `- [ ] ` lines are ever inspected, so prose is
+                         structurally invisible.
+    Anything else is implementation work and still blocks. The template
+    (sdd-plus/templates/tasks.md:9-13) contains no verifier task, so a fresh packet
+    gets zero waivers and cannot archive on a report alone."""
+    if not tasks_path.is_file():
+        return 0, 0
+    owned = other = 0
+    in_verifier_section = False
+    for line in tasks_path.read_text(encoding="utf-8-sig").splitlines():
+        if re.match(r"^##(?!#)\s", line):
+            in_verifier_section = bool(_VERIFIER_OWNED.search(_flatten(line)))
+            continue
+        if re.match(r"^\s*-\s*\[\s\]\s+", line):
+            if in_verifier_section or _VERIFIER_OWNED.search(_flatten(line)):
+                owned += 1
+            else:
+                other += 1
+    return owned, other
+
+
+def archive_readiness(change_dir: Path, caps_dir: Path, *,
+                      bound: "VerdictBinding | None" = None) -> list[tuple[str, str]]:
+    """The single, read-only list of WAIVABLE blockers between a packet and
     archive. cmd_archive enforces it and the ready-prompt reads it, so the prompt
     can NEVER claim ready when archive would block — they consult one function.
     Returns [(category, message), ...]; an empty list means archive-eligible.
+
+    Read-only but NOT side-effect-free: it spawns scripts/check_verdict.py through
+    verdict_binding to decide whether an independent verifier verdict is bound to
+    bytes in this packet. AT MOST ONE subprocess per call, and ZERO when the packet
+    claims nothing (no verifier-report.md and no verifier-report.sha256). The
+    keyword-only `bound=` parameter exists solely so a caller that has ALREADY
+    computed the binding for THIS SAME change_dir can avoid a second identical
+    spawn; passing a binding computed for a different directory is a caller bug.
+    Policy, spawn budget and every fail-closed mode: plan.md section F.
 
     Deliberately does not fabricate confidence: it reports what is provably wrong.
     Grammar it cannot machine-verify is surfaced separately (delta_heading_issues)
@@ -288,8 +494,18 @@ def archive_readiness(change_dir: Path, caps_dir: Path) -> list[tuple[str, str]]
         blockers.append(("missing-requirement",
                          "delta requirements not present in the living spec "
                          "(delta not synced?): " + "; ".join(missing_reqs)))
-    unfilled = packet_unfilled(change_dir)
-    _, pending = task_counts(change_dir / "tasks.md")
+    bound = verdict_binding(change_dir) if bound is None else bound
+    if bound.reason:
+        blockers.append(("unbound-verdict",
+                         f"{VERIFIER_REPORT} is present but not bound: {bound.reason}"))
+    placeholders, result_pending = packet_unfilled_reasons(change_dir)
+    verifier_pending, other_pending = verifier_owned_pending(change_dir / "tasks.md")
+    if bound.ok:
+        unfilled, pending = placeholders, other_pending
+    else:
+        unfilled = sorted(set(placeholders) | set(result_pending),
+                          key=REQUIRED_FILES.index)
+        pending = verifier_pending + other_pending
     if unfilled or pending > 0:
         detail = []
         if pending > 0:
@@ -322,15 +538,19 @@ def _classify_packet(change_dir: Path, caps_dir: Path) -> tuple[str, str]:
         missing = [f for f in REQUIRED_FILES if not (change_dir / f).is_file()]
         if missing:
             return "IN-PROGRESS", "missing " + ", ".join(missing)
-        _, pending = task_counts(change_dir / "tasks.md")
+        bound = verdict_binding(change_dir)
+        verifier_pending, other_pending = verifier_owned_pending(change_dir / "tasks.md")
+        pending = other_pending if bound.ok else verifier_pending + other_pending
         if pending > 0:
             return "IN-PROGRESS", f"{pending} pending task(s)"
-        unfilled = packet_unfilled(change_dir)
+        placeholders, result_pending = packet_unfilled_reasons(change_dir)
+        unfilled = placeholders if bound.ok else sorted(
+            set(placeholders) | set(result_pending), key=REQUIRED_FILES.index)
         if unfilled:
             return "CLAIMED-DONE-UNVERIFIED", "tasks done; unfilled: " + ", ".join(unfilled)
         if any(delta_heading_issues(f) for f in delta_spec_files(change_dir)):
             return "NEEDS-SYNC", "non-canonical delta grammar; run /drydock:sync"
-        if archive_readiness(change_dir, caps_dir):
+        if archive_readiness(change_dir, caps_dir, bound=bound):
             return "NEEDS-SYNC", "delta specs not yet in the living specs"
         return "ARCHIVE-READY", "verified + synced"
     except Exception as e:  # noqa: BLE001 — a triage crash must never abort the sweep
@@ -390,14 +610,30 @@ def cmd_verify(name: str, show_ready_prompt: bool = True) -> int:
     if missing:
         sys.exit(f"error: missing required artifacts: {', '.join(missing)}")
 
+    placeholders, result_pending = packet_unfilled_reasons(change_dir)
     unfilled = packet_unfilled(change_dir)
     complete, pending = task_counts(change_dir / "tasks.md")
+    caps_dir = root / "sdd-plus" / "specs" / "capabilities"
+    bound = verdict_binding(change_dir)
+    blockers = archive_readiness(change_dir, caps_dir, bound=bound)   # reuses the binding: 1 spawn, not 2
+    blocking_unfilled = placeholders if bound.ok else unfilled
+
     print(f"Verified artifacts for {name}.")
     print(f"Tasks: {complete} complete, {pending} pending.")
-    if unfilled:
-        print(f"warning: unfilled placeholder content (TBD) remains in: {', '.join(unfilled)}")
-    if pending > 0:
-        print("Pending tasks remain. Archive will require --force.")
+    if blocking_unfilled:
+        print("warning: unfilled placeholder content (TBD) remains in: "
+              + ", ".join(blocking_unfilled))
+    if bound.ok:
+        print(f"Bound verifier verdict: {bound.verdict} "
+              f"({VERIFIER_REPORT} sha256 {bound.digest[:12]}… confirmed by "
+              f"{CHECK_VERDICT.name}).")
+        if result_pending:
+            print("note: verification.md Result is still Pending — waived by the "
+                  "bound verdict.")
+    elif bound.reason:
+        print(f"warning: {VERIFIER_REPORT} is present but NOT bound: {bound.reason}")
+    if any(c == "incomplete" for c, _ in blockers):
+        print("Packet incomplete. Archive will require --force.")
 
     # Delta grammar lint — surfaced every verify. Non-canonical headings make the
     # sync gate unverifiable, so they are worth naming even when the packet is green.
@@ -413,9 +649,7 @@ def cmd_verify(name: str, show_ready_prompt: bool = True) -> int:
     # TOWARD 'needs sync' — READY prints only on positive confirmation, never from a
     # merely empty blocker list, so a non-canonical or unsynced delta cannot read as
     # ready. This closes the pre-existing vacuous-pass hole.
-    if show_ready_prompt and not unfilled and pending == 0:
-        caps_dir = root / "sdd-plus" / "specs" / "capabilities"
-        blockers = archive_readiness(change_dir, caps_dir)
+    if show_ready_prompt:
         if heading_issues:
             print("Not archive-ready: delta grammar is not machine-verifiable — "
                   "run /drydock:sync, then verify again.")
@@ -429,7 +663,7 @@ def cmd_verify(name: str, show_ready_prompt: bool = True) -> int:
                 print("Not archive-ready: " + "; ".join(m for _, m in blockers))
         else:
             print(f"READY TO ARCHIVE — run: python scripts/sdd.py archive {name}")
-    return 1 if unfilled else 0
+    return 1 if blocking_unfilled else 0
 
 
 def record_override(change_dir: Path, waived: list, reason: str) -> None:
@@ -552,9 +786,14 @@ def cmd_archive(name: str, force: bool, reason: str = "") -> None:
     waived = [msg for _, msg in blockers]
     if blockers and not force:
         lines = "\n".join(f"  - {msg}" for _, msg in blockers)
-        hint = ("Run /drydock:sync first" if any(
-            c in ("unsynced-capability", "missing-requirement") for c, _ in blockers)
-            else "Complete the packet")
+        if any(c == "unbound-verdict" for c, _ in blockers):
+            hint = ("Bind the verifier verdict: put the report verbatim in "
+                    f"{VERIFIER_REPORT} and the sha256 it was stated with in "
+                    f"{VERIFIER_SHA}")
+        elif any(c in ("unsynced-capability", "missing-requirement") for c, _ in blockers):
+            hint = "Run /drydock:sync first"
+        else:
+            hint = "Complete the packet"
         sys.exit(f"error: not archive-ready:\n{lines}\n{hint}, or rerun with --force.")
     if force and waived:
         record_override(change_dir, waived, reason)
