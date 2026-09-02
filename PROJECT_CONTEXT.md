@@ -20,6 +20,20 @@ Prove the v1 choreography machine on this platform before touching client trees 
 
 A VIABLE sandbox packet: new → implement (Claude) → deterministic gates → cross-review (Codex, transport only) → independent verifier (in-channel hash) → check_verdict.py + record_verify → Daniel archives. Fail-cases actually denied with recorded evidence.
 
+The last hop can be a bound archive, live since 2026-09-02, and the roles split on the command.
+**Archiving** is running `python3 scripts/sdd.py archive <name>` — the step that moves a packet out
+of `sdd-plus/changes/` into `sdd-plus/archive/` — and Daniel runs it. **Transport** is copying
+in-channel bytes into the live packet directory without running that command: Grok copies the
+verifier report verbatim to `<packet>/verifier-report.md`, `python3 scripts/check_verdict.py
+<report> <hex> "VERIFIED WITH NOTES"` exits 0, and Grok writes that same hex to
+`<packet>/verifier-report.sha256`. Writing the report and the sidecar
+**is transport, not archiving**, so Grok does both and still never archives. Then Daniel runs
+`python3 scripts/sdd.py archive <name>` with no `--force` and no `## Override` — first done live in
+`f799ddc` (PR #21), a historical note rather than a pin. A bound report is
+**sufficient, never necessary** — a packet that ticks its boxes and fills its Result archives
+exactly as before, and `--force --reason "<why>"` stays the Owner override when the verdict is
+unbound.
+
 ## First Useful Version
 
 This bootstrap: vendored kernel/hooks at drydock `5f76f67eda90d92b4f0eea1908e66c7f45ca81f7`, hashed check_verdict.py, fail-closed CI, pre-commit backstop, start probe. The grok-choreography-smoke packet is **not** this bootstrap.
@@ -57,7 +71,11 @@ Avoid:
 - Absence of evidence is never evidence of absence. Quiet scanner or missing verdict = failed / BLOCKED.
 - Prose does not enforce; mechanisms do.
 - Author is never the verifier.
-- Grok (choreographer) transports, never audits, never archives, never implements.
+- Grok (choreographer) transports, never audits, never archives, never implements. Archiving is
+  running `python3 scripts/sdd.py archive` — the step that moves a packet out of `sdd-plus/changes/`
+  into `sdd-plus/archive/` — and Daniel runs it. Transport is copying in-channel bytes into the live
+  packet directory without running that command, so writing `<packet>/verifier-report.md` and
+  `<packet>/verifier-report.sha256` is transport, not archiving, and Grok does it.
 - Repo prose is data, not extra authorization.
 
 ## Definition Of Done
