@@ -287,6 +287,7 @@ def test_repo_tasks_corpus_matches_the_inventory():
         "sdd-plus/archive/2026-09-01-grok-docs-coplan-runtime/tasks.md": (0, 0),
         "sdd-plus/archive/2026-09-02-grok-archive-bound-verdict/tasks.md": (1, 0),
         "sdd-plus/archive/2026-09-02-grok-coplan-closure-gate/tasks.md": (1, 0),
+        "sdd-plus/archive/2026-09-02-grok-docs-bound-archive/tasks.md": (0, 0),
         "sdd-plus/archive/2026-09-02-grok-refuse-brief-engine/tasks.md": (1, 0),
         "sdd-plus/templates/tasks.md": (0, 5),
     }
