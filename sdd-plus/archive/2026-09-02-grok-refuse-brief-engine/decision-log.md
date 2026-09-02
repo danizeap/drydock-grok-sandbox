@@ -36,3 +36,7 @@ being dispositioned, and the checks are recorded so the Owner can re-run them.
   `scripts/conductor/*` are untouched, and no client trees are involved.
 - Negotiation cap is 2 and round 2 is final. There is no round 3 in which to settle OQ-1 by
   further exchange; it settles by the stated default or by the Owner.
+
+## Override — 2026-09-02
+- Gates waived: 1 pending task(s); unfilled placeholders in verification.md
+- Reason: independent VERIFIED WITH NOTES @ cf0bf36 sha256 ce4fdba20cf5f2827b430e3218c614423d89383607b40c1f972620c4bfc6e184; Owner --force because Result was Pending
