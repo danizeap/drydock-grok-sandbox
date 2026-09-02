@@ -272,19 +272,22 @@ def test_repo_tasks_corpus_matches_the_inventory():
     contract: the day a wording the closed set does not cover enters the repo,
     this goes red instead of silently misclassifying. Writes nothing.
 
-    The live packet's row reads (1, 0) rather than the template's (0, 5) because
-    this packet's own tasks.md is now filled: its implementer boxes are ticked and
-    its one pending task is the inventoried LINE FORM (the same wording as
-    archive/2026-09-02-grok-coplan-closure-gate/tasks.md:47). No new wording was
-    introduced, so the closed set of plan.md section E.1 is unchanged."""
+    This packet is now archived, so its row moved from sdd-plus/changes/ to
+    archive/2026-09-02-grok-archive-bound-verdict/ -- there is no longer a live
+    packet under sdd-plus/changes/. Its counts are still (1, 0) rather than the
+    template's (0, 5) because its tasks.md is filled: its implementer boxes are
+    ticked and its one pending task is the inventoried LINE FORM (the same wording
+    as archive/2026-09-02-grok-coplan-closure-gate/tasks.md:47). Archiving moved
+    the file, it did not change its text: no new wording entered tasks.md, so the
+    closed set of plan.md section E.1 is unchanged."""
     expected = {
         "sdd-plus/archive/2026-09-01-grok-choreography-smoke/tasks.md": (4, 0),
         "sdd-plus/archive/2026-09-01-grok-coplan-discover-probe/tasks.md": (0, 0),
         "sdd-plus/archive/2026-09-01-grok-coplan-linux-discover/tasks.md": (0, 0),
         "sdd-plus/archive/2026-09-01-grok-docs-coplan-runtime/tasks.md": (0, 0),
+        "sdd-plus/archive/2026-09-02-grok-archive-bound-verdict/tasks.md": (1, 0),
         "sdd-plus/archive/2026-09-02-grok-coplan-closure-gate/tasks.md": (1, 0),
         "sdd-plus/archive/2026-09-02-grok-refuse-brief-engine/tasks.md": (1, 0),
-        "sdd-plus/changes/grok-archive-bound-verdict/tasks.md": (1, 0),
         "sdd-plus/templates/tasks.md": (0, 5),
     }
     found = sorted(str(p.relative_to(ROOT).as_posix())
