@@ -4,7 +4,7 @@
 brief.py --record-verify is completeness, not provenance. Case 5b showed a
 typed PASS with no in-channel hash still produced recorded=true. This wrapper
 is the choreography gate: check_verdict must exit 0 *before* record_verify
-runs. Do not call kernel/brief_engine.py --record-verify directly; kernel/brief.py, kernel/brief_complete.py, and scripts/brief.py refuse the bare form.
+runs. Completeness is kernel/brief_complete_engine.py; do not call it --record-verify directly. kernel/brief.py, kernel/brief_complete.py, scripts/brief.py and kernel/brief_engine.py all refuse the bare form.
 
 usage:
   python3 scripts/record_verify_bound.py <packet> <verdict-file> <expected-sha256> <required-verdict-string>
@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CHECK = ROOT / "scripts" / "check_verdict.py"
-BRIEF = ROOT / "kernel" / "brief_engine.py"
+BRIEF = ROOT / "kernel" / "brief_complete_engine.py"
 
 
 def main(argv: list[str]) -> int:
