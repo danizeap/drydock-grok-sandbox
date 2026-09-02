@@ -3,7 +3,7 @@
   "verifier_md_git_blob": "45657bf47d64fb801cd9ef22a29d7518762aa870",
   "hash_alg": "sha256",
   "files": {
-    "scripts/sdd.py": "202e2fb127caa716788f8866dfdd80f02b49eca937037aee0ecf2c57174c48f1",
+    "scripts/sdd.py": "edea07c8b1f18bed62312c6617b4f5b5bbc9c4f6db0868cc519fe40099fcff68",
     "scripts/brief.py": "90307795715e5967e7497a410015bc5a880938956471919e52b00eb3b32e5900",
     "kernel/brief.py": "4ced1fe41d7697f5de7eeed6cc1ee6bbcfda53ff20a6a87085f2eb46dd2c9b5b",
     "scripts/check_verdict.py": "79075ea8089598260a749c8b20d0f672bdf0670f4e891fdf8c5b82e87b20f735",
